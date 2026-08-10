@@ -1,14 +1,14 @@
 """
-world/world_state.py — In-memory world state manager with Redis persistence.
+ In-memory world state manager with Redis persistence.
 
 Responsibilities:
 - Parse LLM-generated world JSON into typed model objects
 - Store and retrieve game sessions (Redis for speed, JSON serialised)
 - Provide clean read/write helpers for the API layer
 
-Design decision: We use a simple dict-in-memory store for Phase 1/2.
+Design decision: a simple dict-in-memory store.
 Redis persistence is wired in so sessions survive server restarts.
-Full PostgreSQL migration happens in Phase 3.
+
 """
 
 from __future__ import annotations
@@ -61,9 +61,9 @@ class WorldStateManager:
             )
         return self._redis
 
-    # ─────────────────────────────────────────────────────────────────────────
+
     # Session lifecycle
-    # ─────────────────────────────────────────────────────────────────────────
+
 
     async def create_session(
         self,
@@ -175,9 +175,7 @@ class WorldStateManager:
                 "Redis unavailable (sessions kept in memory only): %s", exc
             )
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Helpers
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _parse_location(self, data: dict) -> Location:
         return Location(
@@ -227,9 +225,7 @@ class WorldStateManager:
             status=QuestStatus.AVAILABLE,
         )
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Read helpers used by API routes
-    # ─────────────────────────────────────────────────────────────────────────
 
     def get_npcs_at_location(
         self, session: GameSession, location_id: str

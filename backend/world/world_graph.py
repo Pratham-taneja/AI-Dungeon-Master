@@ -1,7 +1,7 @@
 """
-world/world_graph.py — PostgreSQL-backed world state graph manager.
+ PostgreSQL-backed world state graph manager.
 
-Phase 3 replaces the pure in-memory approach with full DB persistence.
+replaces the pure in-memory approach with full DB persistence.
 The WorldStateManager still holds sessions in memory for speed,
 but now syncs every mutation to PostgreSQL for durability.
 
@@ -43,7 +43,7 @@ class WorldGraphDB:
     All methods take an AsyncSession from FastAPI dependency injection.
     """
 
-    # ── Session ───────────────────────────────────────────────────────────────
+    # Session
 
     async def upsert_session(
         self, db: AsyncSession, session: GameSession
@@ -82,7 +82,7 @@ class WorldGraphDB:
             .values(is_active=False)
         )
 
-    # ── Locations ─────────────────────────────────────────────────────────────
+    # Locations
 
     async def upsert_location(
         self, db: AsyncSession, session_id: str, location: Location
@@ -128,7 +128,7 @@ class WorldGraphDB:
             .values(map_image_url=map_url)
         )
 
-    # ── NPCs ──────────────────────────────────────────────────────────────────
+    # NPCs
 
     async def upsert_npc(
         self, db: AsyncSession, session_id: str, npc: NPC
@@ -174,7 +174,7 @@ class WorldGraphDB:
         )
         return list(result.scalars().all())
 
-    # ── Quests ────────────────────────────────────────────────────────────────
+    # Quests 
 
     async def upsert_quest(
         self, db: AsyncSession, session_id: str, quest: Quest
@@ -207,7 +207,7 @@ class WorldGraphDB:
         )
         return list(result.scalars().all())
 
-    # ── World Events ──────────────────────────────────────────────────────────
+    # World Events
 
     async def log_event(
         self,
@@ -238,7 +238,7 @@ class WorldGraphDB:
         )
         return list(reversed(result.scalars().all()))
 
-    # ── Bulk sync ─────────────────────────────────────────────────────────────
+    # Bulk sync
 
     async def sync_session_to_db(
         self, db: AsyncSession, session: GameSession
