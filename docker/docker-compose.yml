@@ -1,0 +1,129 @@
+services:
+  # ── PostgreSQL 
+  postgres:
+    image: postgres:16-alpine
+    container_name: rpg_postgres
+    environment:
+      POSTGRES_USER: rpg_user
+      POSTGRES_PASSWORD: rpg_pass
+      POSTGRES_DB: rpg_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rpg_user -d rpg_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Redis 
+  redis:
+    image: redis:7-alpine
+    container_name: rpg_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Backend (FastAPI) 
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: rpg_backend
+    env_file:
+      - ../backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://rpg_user:rpg_pass@postgres:5432/rpg_db
+      DATABASE_SYNC_URL: postgresql://rpg_user:rpg_pass@postgres:5432/rpg_db
+      REDIS_URL: redis://redis:6379/0
+      CHROMA_PERSIST_PATH: /app/chroma_data
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend:/app
+      - chroma_data:/app/chroma_data
+      - asset_data:/app/static
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ── Celery Worker (Phase 3 — autonomous world events) 
+  celery_worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: rpg_celery_worker
+    env_file:
+      - ../backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://rpg_user:rpg_pass@postgres:5432/rpg_db
+      DATABASE_SYNC_URL: postgresql://rpg_user:rpg_pass@postgres:5432/rpg_db
+      REDIS_URL: redis://redis:6379/0
+      CHROMA_PERSIST_PATH: /app/chroma_data
+    volumes:
+      - ../backend:/app
+      - chroma_data:/app/chroma_data
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command: >
+      celery -A tasks.world_events.celery_app worker
+      --loglevel=info
+      --concurrency=2
+      --queues=celery
+
+  # ── Celery Beat Scheduler (fires periodic world events every N seconds) 
+  celery_beat:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: rpg_celery_beat
+    env_file:
+      - ../backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://rpg_user:rpg_pass@postgres:5432/rpg_db
+      DATABASE_SYNC_URL: postgresql://rpg_user:rpg_pass@postgres:5432/rpg_db
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ../backend:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: >
+      celery -A tasks.world_events.celery_app beat
+      --loglevel=info
+      --scheduler celery.beat:PersistentScheduler
+
+  # ── Frontend (Next.js) 
+  frontend:
+    image: node:20-alpine
+    container_name: rpg_frontend
+    working_dir: /app
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    depends_on:
+      - backend
+    command: sh -c "npm install && npm run dev"
+
+volumes:
+  postgres_data:
+  redis_data:
+  chroma_data:
+  asset_data:
