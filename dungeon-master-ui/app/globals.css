@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #0b0a09;
+  color: #e8dcc4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: #c9a227;
+  text-decoration: none;
+}
+a:hover {
+  color: #e6c454;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(201, 162, 39, 0.25);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes dm-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes dm-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.35);
+  }
+}
+@keyframes dm-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+  100% {
+    transform: translate3d(-2%, -1.5%, 0) scale(1.12);
+  }
+}
+@keyframes dm-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.28), 0 0 22px -6px rgba(201, 162, 39, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.5), 0 0 34px -4px rgba(201, 162, 39, 0.6);
+  }
+}
+
+/* Interactive state classes — inline styles carry the base look ported
+   from the design; these cover the :hover/:focus states inline styles
+   can't express. */
+
+.dm-input:focus {
+  border-color: rgba(201, 162, 39, 0.6);
+  box-shadow: 0 0 24px -8px rgba(201, 162, 39, 0.6);
+}
+
+.dm-class-card:hover {
+  border-color: rgba(201, 162, 39, 0.55);
+  background: rgba(201, 162, 39, 0.09);
+}
+
+.dm-begin-btn:not(:disabled):hover {
+  background: linear-gradient(180deg, rgba(201, 162, 39, 0.36), rgba(201, 162, 39, 0.14));
+  box-shadow: 0 0 40px -10px rgba(201, 162, 39, 0.8);
+}
+
+.dm-inventory-item:hover {
+  border-color: rgba(201, 162, 39, 0.35);
+  background: rgba(201, 162, 39, 0.06);
+}
+
+.dm-history-toggle:hover {
+  border-color: rgba(201, 162, 39, 0.5);
+  color: #e8dcc4;
+}
+
+.dm-quick-action:not(:disabled):hover {
+  background: rgba(201, 162, 39, 0.16);
+  border-color: rgba(201, 162, 39, 0.55);
+  color: #f0e3bd;
+}
+
+.dm-act-input:focus {
+  border-color: rgba(201, 162, 39, 0.7);
+}
+
+.dm-act-btn:not(:disabled):hover {
+  background: linear-gradient(180deg, rgba(201, 162, 39, 0.42), rgba(201, 162, 39, 0.16));
+}
+
+.dm-npc-card:hover {
+  border-color: rgba(201, 162, 39, 0.45);
+  background: rgba(201, 162, 39, 0.07);
+}
+
+.dm-modal-close:hover {
+  border-color: rgba(201, 162, 39, 0.6);
+  color: #f0e3bd;
+}
+
+.dm-modal-input:focus {
+  border-color: rgba(201, 162, 39, 0.7);
+  box-shadow: 0 0 26px -8px rgba(201, 162, 39, 0.7);
+}
+
+.dm-toolbar-btn:hover {
+  border-color: rgba(201, 162, 39, 0.5);
+}
