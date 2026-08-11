@@ -1,5 +1,5 @@
 """
-alembic/env.py — Alembic migration environment.
+ Alembic migration environment.
 
 Connects to the database using settings from config.py.
 Supports both online (apply migration) and offline (generate SQL) modes.

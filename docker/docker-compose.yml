@@ -112,7 +112,7 @@ services:
     container_name: rpg_frontend
     working_dir: /app
     volumes:
-      - ../frontend:/app
+      - ../dungeon-master-ui:/app
       - /app/node_modules
     ports:
       - "3000:3000"
