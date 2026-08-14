@@ -1,0 +1,9 @@
+{
+  "total": 20,
+  "clean": 1,
+  "clean_pct": 5.0,
+  "repaired": 10,
+  "repaired_pct": 50.0,
+  "failed": 9,
+  "failed_pct": 45.0
+}

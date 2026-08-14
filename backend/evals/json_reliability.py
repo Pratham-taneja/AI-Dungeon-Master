@@ -5,15 +5,6 @@ Measures how often the DungeonMasterAgent's structured JSON block:
   - parses cleanly on the first attempt ("clean")
   - fails to parse cleanly but is recovered by the truncation-repair pass ("repaired")
   - fails entirely, even after repair ("failed")
-
-This directly measures the reliability of the defensive JSON extraction built
-into agents/dm_agent.py (_extract_json_block / _repair_truncated_json), against
-a small, fixed model (Llama 3.1 8B via NVIDIA NIM) that occasionally produces
-malformed or truncated structured output.
-
-NVIDIA_API_KEY set (.env)
-No database/Redis required — this eval only exercises the LLM + parsing
-logic directly, not the full session-persistence path.
 """
 
 from __future__ import annotations
@@ -31,14 +22,14 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from agents.dm_agent import (
     DungeonMasterAgent,
-    _repair_truncated_json,
+    _extract_json_block,
     _strip_json_block,
     _JSON_BLOCK_RE,
 )
-from models.schemas import PlayerClass, PlayerCreate
+from models.schemas import PlayerClass, PlayerCreate, ConversationTurn
+from world.world_state import WorldStateManager
+from agents.prompts import DM_SYSTEM_PROMPT
 
-# A fixed, varied set of player actions to exercise the DM across different
-# kinds of turns (exploration, combat, dialogue, item use, nonsense input).
 SAMPLE_ACTIONS = [
     "I look around the room carefully.",
     "I draw my weapon and attack the nearest enemy.",
@@ -48,7 +39,7 @@ SAMPLE_ACTIONS = [
     "I ask the innkeeper about rumors in town.",
     "I attempt to pick the lock on the door.",
     "I rest by the fire to recover my strength.",
-    "I try to fly to the moon using my sword as a rocket.",  # nonsensical, tests grounding
+    "I try to fly to the moon using my sword as a rocket.",
     "I offer the merchant my gold for information.",
     "I sneak past the sleeping dragon.",
     "I shout a challenge to anyone listening.",
@@ -74,7 +65,7 @@ class EvalResult:
             self.repaired += 1
         else:
             self.failed += 1
-            self.failures.append(raw_snippet[:200])
+            self.failures.append(raw_snippet)
 
     def summary(self) -> dict:
         if self.total == 0:
@@ -91,33 +82,17 @@ class EvalResult:
 
 
 def _classify_json_output(raw_response: str) -> str:
-    """
-    Classify how the structured JSON block in a raw DM response was recovered.
-
-    Mirrors the exact staged logic in agents.dm_agent._extract_json_block,
-    but reports *which* stage succeeded rather than just the final dict.
-    """
+    result = _extract_json_block(raw_response)
+    if not result:
+        return "failed"
     match = _JSON_BLOCK_RE.search(raw_response)
     if match:
-        raw = match.group(1).replace("{{", "{").replace("}}", "}")
-    else:
-        start = raw_response.find("{")
-        end = raw_response.rfind("}")
-        if start == -1 or end == -1 or start >= end:
-            return "failed"
-        raw = raw_response[start:end + 1].replace("{{", "{").replace("}}", "}")
-
-    try:
-        json.loads(raw)
-        return "clean"
-    except json.JSONDecodeError:
-        pass
-
-    repaired = _repair_truncated_json(raw)
-    if repaired:
-        return "repaired"
-
-    return "failed"
+        try:
+            json.loads(match.group(1).replace("{{", "{").replace("}}", "}"))
+            return "clean"
+        except json.JSONDecodeError:
+            return "repaired"
+    return "repaired"
 
 
 async def run_eval(num_turns: int) -> EvalResult:
@@ -131,9 +106,6 @@ async def run_eval(num_turns: int) -> EvalResult:
         player_backstory="A test character used purely for evaluation.",
     )
 
-    # Minimal in-memory session object, built the same way world_state.py
-    # would, but standalone here to avoid requiring Redis for this eval.
-    from world.world_state import WorldStateManager
     wm = WorldStateManager()
     player = PlayerCreate(
         name="EvalRunner", player_class=PlayerClass.WARRIOR,
@@ -145,8 +117,6 @@ async def run_eval(num_turns: int) -> EvalResult:
 
     for i, action in enumerate(actions, 1):
         context = dm._build_context(session)
-
-        from agents.prompts import DM_SYSTEM_PROMPT
         full_system = f"{DM_SYSTEM_PROMPT}\n\n{context}"
         history_messages = dm._build_message_history(session)
 
@@ -158,7 +128,7 @@ async def run_eval(num_turns: int) -> EvalResult:
 
         try:
             response = await dm._llm.ainvoke(messages)
-            raw_text: str = response.content  # type: ignore[assignment]
+            raw_text: str = response.content
         except Exception as exc:
             print(f"  [{i}/{num_turns}] LLM call failed: {exc}")
             result.record("failed", str(exc))
@@ -167,9 +137,6 @@ async def run_eval(num_turns: int) -> EvalResult:
         status = _classify_json_output(raw_text)
         result.record(status, raw_text)
 
-        # Update conversation history so subsequent turns have real context,
-        # same as the live app does.
-        from models.schemas import ConversationTurn
         narrative_only = _strip_json_block(raw_text)
         session.conversation_history.append(ConversationTurn(role="user", content=action))
         session.conversation_history.append(ConversationTurn(role="assistant", content=narrative_only))
@@ -199,9 +166,9 @@ def main() -> None:
     print("=" * 60)
 
     if result.failures:
-        print("\nSample of failed responses (first 200 chars):")
+        print("\nFull failed responses:")
         for f in result.failures[:5]:
-            print(f"  - {f!r}")
+            print(f"\n--- FAILURE ---\n{f}\n")
 
     out_path = Path(__file__).parent / "json_reliability_results.json"
     out_path.write_text(json.dumps(summary, indent=2))

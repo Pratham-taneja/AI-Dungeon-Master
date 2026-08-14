@@ -1,5 +1,5 @@
 """
-\NPC memory retrieval accuracy eval (recall@K).
+NPC memory retrieval accuracy eval (recall@K).
 
 Measures whether the ChromaDB-backed semantic memory store (memory/npc_memory.py)
 actually retrieves the *relevant* memory for a differently-worded follow-up

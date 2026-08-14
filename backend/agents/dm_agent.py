@@ -71,29 +71,43 @@ def _normalise_json_str(raw: str) -> str:
 
 
 def _extract_json_block(text: str) -> dict:
+    # Try the fully-fenced case first (both opening and closing ```)
     match = _JSON_BLOCK_RE.search(text)
-    if not match:
-        # Fallback: look for exactly one JSON object starting with { and ending with }
-        # We start from the FIRST { and end at the LAST }
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1 and start < end:
-            raw = text[start:end+1]
-        else:
-            return {}
-    else:
-        raw = match.group(1)
+    if match:
+        raw = _normalise_json_str(match.group(1))
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            repaired = _repair_truncated_json(raw)
+            if repaired:
+                return repaired
 
-    raw = _normalise_json_str(raw)
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        # Try repair on the normalised string
-        repaired = _repair_truncated_json(raw)
+    # Fallback: opening ```json fence present, but no closing fence —
+    # take everything after the opening marker, then apply brace-matching
+    # extraction so any trailing prose after the JSON is correctly ignored.
+    open_marker = "```json"
+    idx = text.find(open_marker)
+    if idx != -1:
+        after_marker = text[idx + len(open_marker):]
+        candidate = _normalise_json_str(after_marker)
+        try:
+            start = candidate.find("{")
+            end = candidate.rfind("}")
+            if start != -1 and end != -1 and start < end:
+                return json.loads(candidate[start:end + 1])
+        except json.JSONDecodeError:
+            pass
+        repaired = _repair_truncated_json(candidate)
         if repaired:
             return repaired
-        logger.warning("DM JSON parse failed | raw: %s", raw[:200])
-        return {}
+
+    # Last resort: no fence markers at all — brace-match the whole text.
+    repaired = _repair_truncated_json(text)
+    if repaired:
+        return repaired
+
+    logger.warning("DM JSON parse failed | raw: %s", text[:200])
+    return {}
 
 
 def _strip_json_block(text: str) -> str:

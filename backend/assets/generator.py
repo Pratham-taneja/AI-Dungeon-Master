@@ -82,10 +82,10 @@ async def generate_image_bytes(prompt: str, width: int = 512, height: int = 512)
     }
 
     async with httpx.AsyncClient() as client:
-        for attempt in range(3):
+        for attempt in range(1):
             try:
                 logger.info("Requesting image from NVIDIA Flux.1-schnell (attempt %d)...", attempt + 1)
-                resp = await client.post(NVIDIA_IMAGE_URL, json=payload, headers=headers, timeout=60.0)
+                resp = await client.post(NVIDIA_IMAGE_URL, json=payload, headers=headers, timeout=30.0)
                 resp.raise_for_status()
 
                 data = resp.json()
@@ -105,7 +105,7 @@ async def generate_image_bytes(prompt: str, width: int = 512, height: int = 512)
                 logger.warning("NVIDIA response missing image data: %s", data)
 
             except Exception as e:
-                logger.warning("NVIDIA Flux.1-schnell failed (attempt %d): %s", attempt + 1, str(e))
+                logger.warning("NVIDIA Flux.1-schnell failed (attempt %d): %s: %s", attempt + 1, type(e).__name__, str(e))
                 if attempt == 2:
                     break
                 await asyncio.sleep(2)
